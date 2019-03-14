@@ -1,0 +1,12 @@
+dataset/graffiti
+dataset/background_images
+
+test_images
+.idea
+
+dataset.csv
+export.csv
+
+venv
+
+graffiti_dataset.egg-info
