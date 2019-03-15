@@ -6,7 +6,9 @@ import random
 import skimage
 import numpy as np
 from scipy.ndimage import gaussian_filter, map_coordinates
-from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
+import umap
+from sklearn.decomposition import PCA
 
 
 class DatasetSample:
@@ -170,12 +172,9 @@ class DatasetSample:
 
         self.sample['image'] = random_color_image
 
-    def main_colors(self):
-        """
-        Computes the most dominant colors in the image
+    def graffiti_pixels(self, return_percentage=100):
 
-        :return: Array of most important colors and percentage of pixels they represent
-        """
+        assert return_percentage <= 100
 
         rows,cols,_ = self.image.shape
 
@@ -188,6 +187,18 @@ class DatasetSample:
                 if mask_value != 0:
                     pixel_value = np.flip(self.image[i, j])
                     raw_pixel_values.append(pixel_value)
+
+        random.shuffle(raw_pixel_values)
+
+        stop_val = int((len(raw_pixel_values) / 100) * return_percentage)
+
+        raw_pixel_values = raw_pixel_values[0:stop_val]
+
+        return np.array(raw_pixel_values)
+
+    def _kmeans_color_clusters(self):
+
+        raw_pixel_values = self.graffiti_pixels()
 
         embedding = KMeans().fit(raw_pixel_values)
 
@@ -207,6 +218,17 @@ class DatasetSample:
             image_colors.append([color_percentage, list(image_main_colors[key])])
 
         return sorted(image_colors, key=itemgetter(0), reverse=True)
+
+
+    def main_colors(self):
+        """
+        Computes the most dominant colors in the image
+
+        :return: Array of most important colors and percentage of pixels they represent
+        """
+
+        return self._kmeans_color_clusters()
+
 
     def paste_on_background(self, background_image):
         """
