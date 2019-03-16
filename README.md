@@ -331,7 +331,10 @@ The most common colors in the graffiti
 Source Image
 </td>
 <td>
-Color chart
+RGB Kmeans clusters
+</td>
+<td>
+HSV DBSCAN clusters
 </td>
 </tr>
 
@@ -340,7 +343,10 @@ Color chart
     <img src="./readme_images/01df7f7f7e7e6000_image.png" width="200">
 </td>
 <td>
-    <img src="./readme_images/01df7f7f7e7e6000_colors.png" width="200">
+    <img src="./readme_images/01df7f7f7e7e6000_colors_rgb.png" width="200">
+</td>
+<td>
+    <img src="./readme_images/01df7f7f7e7e6000_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -349,7 +355,10 @@ Color chart
     <img src="./readme_images/000001ff0013ffff_image.png" width="200">
 </td>
 <td>
-    <img src="./readme_images/000001ff0013ffff_colors.png" width="200">
+    <img src="./readme_images/000001ff0013ffff_colors_rgb.png" width="200">
+</td>
+<td>
+    <img src="./readme_images/000001ff0013ffff_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -358,7 +367,10 @@ Color chart
     <img src="./readme_images/7f7fff8f89837f00_image.png" width="200">
 </td>
 <td>
-    <img src="./readme_images/7f7fff8f89837f00_colors.png" width="200">
+    <img src="./readme_images/7f7fff8f89837f00_colors_rgb.png" width="200">
+</td>
+<td>
+    <img src="./readme_images/7f7fff8f89837f00_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -367,7 +379,10 @@ Color chart
     <img src="./readme_images/070b070707cfa7ff_image.png" width="200">
 </td>
 <td>
-    <img src="./readme_images/070b070707cfa7ff_colors.png" width="200">
+    <img src="./readme_images/070b070707cfa7ff_colors_rgb.png" width="200">
+</td>
+<td>
+    <img src="./readme_images/070b070707cfa7ff_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -376,7 +391,10 @@ Color chart
     <img src="./readme_images/8703f3c389a1f73f_image.png" width="200">
 </td>
 <td>
-    <img src="./readme_images/8703f3c389a1f73f_colors.png" width="200">
+    <img src="./readme_images/8703f3c389a1f73f_colors_rgb.png" width="200">
+</td>
+<td>
+    <img src="./readme_images/8703f3c389a1f73f_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -412,6 +430,16 @@ dataset_samples = glob.glob('./dataset/graffiti_sample/*.p')
 
 draw_map(dataset_samples, f'./readme_images/map.html')
 ```
+
+### Color analysis
+
+3D cube representing colors in sample can be made with `tools.draw_color_cube(sample, 'pixels.html')`
+
+<img src="./readme_images/color_cube_b.mp4.gif">
+
+Colors represented as HSV can be desplayed with `tools.draw_hsv_pixels(sample, 'out.png')`
+
+<img src="./readme_images/070b070707cfa7ff_hue_hsv_pixels.png">
 
 ## Process data from LabelBox
 

@@ -1,13 +1,14 @@
+
 import cv2
 import glob
 import random
+import plotly
 import skimage
-import numpy as np
-import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.pyplot as plt
 from graffiti_dataset.dataset import DatasetSample
 import folium
+import plotly.graph_objs as go
 
 
 def random_background(width, height, background_images_dir):
@@ -50,6 +51,9 @@ def random_background(width, height, background_images_dir):
 
     return crop_img
 
+def rgbtohex(rgb_color):
+    return '#%02x%02x%02x' % tuple(rgb_color)
+
 def draw_main_colors(image_main_colors, output_path):
     """
     Helper function to generate chart describing color clusters
@@ -62,16 +66,47 @@ def draw_main_colors(image_main_colors, output_path):
     y_pos = np.arange(len(rgb_colors))
     color_percentages = np.array(image_main_colors)[:, 0]
 
-    def rgbtohex(rgb_color):
-        print(rgb_color)
-        return '#%02x%02x%02x' % tuple(rgb_color)
-
     chart_colors = list(map(rgbtohex, rgb_colors))
 
     plt.bar(y_pos, color_percentages, align='center', color=chart_colors)
     plt.xticks(y_pos, chart_colors)
     plt.ylabel('% of color in graffiti')
     plt.title('Percentage of colors in graffiti')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(output_path)
+
+    plt.cla()
+    plt.clf()
+
+def draw_hsv_pixels(sample, output_path):
+
+    sample_pixels = sample.graffiti_pixels(10)
+    sample_pixels_hsv = sample.rgb_pixels_to_hsv(sample_pixels).astype(int)
+
+    hsv_hue_values = [0] * 360
+    rgb_values = [[] for _ in range(361)]
+
+    for i, pixel in enumerate(sample_pixels_hsv):
+
+        hsv_hue_values[pixel[0]] += 1
+        rgb_values[pixel[0]].append(sample_pixels[i])
+
+    for i, rgb_value in enumerate(rgb_values):
+        if rgb_value:
+            rgb_values[i] = np.mean(rgb_value, axis=0).astype(int)
+        else:
+            rgb_values[i] = (0,0,0)
+
+    chart_colors = list(map(rgbtohex, rgb_values))
+
+    y_pos = np.arange(360)
+
+    fig = plt.figure(figsize=(10, 5),dpi=200)
+    plt.bar(y_pos, hsv_hue_values, align='center', color=chart_colors)
+    plt.ylabel('Pixels in graffiti')
+    plt.xlabel('Hue')
+    plt.title('Pixels in graffiti according Hue value')
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(output_path)
@@ -101,4 +136,44 @@ def draw_map(dataset_samples_paths, output_path):
 
 
     map.save(output_path)
+
+
+def draw_color_cube(dataset_pixels, output_path):
+
+    color_dots = go.Scatter3d(
+        x=dataset_pixels[:,0],
+        y=dataset_pixels[:,1],
+        z=dataset_pixels[:,2],
+        mode='markers',
+        marker=dict(
+            color=dataset_pixels,
+            size=12,
+            symbol='circle',
+            line=dict(
+                color=dataset_pixels,
+                width=1
+            ),
+            opacity=0.9
+        )
+    )
+
+    layout = go.Layout(
+        margin=dict(
+            l=0,
+            r=0,
+            b=0,
+            t=0
+        ),
+        scene=dict(
+            xaxis=dict(range=[0, 255], nticks=10),
+            yaxis=dict(range=[0, 255], nticks=10),
+            zaxis=dict(range=[0, 255], nticks=10),
+            aspectmode="data"
+        )
+    )
+
+    fig = go.Figure(data=[color_dots], layout=layout)
+
+    plotly.offline.plot(fig, filename=output_path, auto_open=False)
+
 
