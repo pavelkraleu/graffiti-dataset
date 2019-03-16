@@ -1,3 +1,4 @@
+import colorsys
 from collections import defaultdict
 from operator import itemgetter
 import cv2
@@ -6,9 +7,8 @@ import random
 import skimage
 import numpy as np
 from scipy.ndimage import gaussian_filter, map_coordinates
-from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
-import umap
-from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans, DBSCAN
+
 
 
 class DatasetSample:
@@ -174,6 +174,8 @@ class DatasetSample:
 
     def graffiti_pixels(self, return_percentage=100):
 
+        # TODO use numpy masking in this function ?
+
         assert return_percentage <= 100
 
         rows,cols,_ = self.image.shape
@@ -196,9 +198,16 @@ class DatasetSample:
 
         return np.array(raw_pixel_values)
 
-    def _kmeans_color_clusters(self):
+    def _kmeans_color_clusters(self, use_pixels_percentage=100):
+        """
+        Cluster pixels according their color in HSV.
+        This method uses DBSCAN as clustering method.
 
-        raw_pixel_values = self.graffiti_pixels()
+        :param use_pixels_percentage: How many pixels of the image use for clustering
+        :return: sorted array of color clusters
+        """
+
+        raw_pixel_values = self.graffiti_pixels(use_pixels_percentage)
 
         embedding = KMeans().fit(raw_pixel_values)
 
@@ -219,6 +228,64 @@ class DatasetSample:
 
         return sorted(image_colors, key=itemgetter(0), reverse=True)
 
+    @staticmethod
+    def rgb_pixels_to_hsv(rgb_pixels):
+
+        return np.array(
+            [np.array(colorsys.rgb_to_hsv(*pixel / 255)) * np.array([360, 100, 100]) for pixel in rgb_pixels])
+
+    def _hsv_color_clusters_dbscan(self, min_cluster_percentage=2, use_pixels_percentage=10, dbscan_eps=10):
+        """
+        Cluster pixels according their color in HSV.
+        This method uses DBSCAN as clustering method.
+
+        :param dbscan_eps: eps parameter to DBSCAN
+        :param use_pixels_percentage: How many pixels of the image use for clustering
+        :param min_cluster_percentage: How big color cluster needs to be to be considered
+        :return: sorted array of color clusters
+        """
+
+        raw_pixel_values = self.graffiti_pixels(use_pixels_percentage)
+
+        min_samples_cluster = int((len(raw_pixel_values) / 100) * min_cluster_percentage)
+
+        hsv_pixels = self.rgb_pixels_to_hsv(raw_pixel_values).astype(np.int16)
+
+        pixels_color_angles = hsv_pixels[:, 0]
+
+        embedding = DBSCAN(
+            eps=dbscan_eps,
+            min_samples=min_samples_cluster
+        ).fit_predict(pixels_color_angles.reshape(-1, 1))
+
+        pixel_counter = defaultdict(int)
+
+        avg_colors = defaultdict(list)
+
+        for i, label in enumerate(embedding):
+
+            pixel_counter[label] += 1
+            avg_colors[label].append(raw_pixel_values[i])
+
+        for key, values in avg_colors.items():
+            avg_colors[key] = np.median(values, axis=0).astype(int)
+
+        image_colors = []
+
+        for key, item in pixel_counter.items():
+
+            if key == -1:
+                continue
+
+            color_percentage = int(item / (len(raw_pixel_values) / 100))
+
+            image_colors.append(
+                [
+                    color_percentage, avg_colors[key]
+                ]
+            )
+
+        return sorted(image_colors, key=itemgetter(0), reverse=True)
 
     def main_colors(self):
         """
@@ -227,7 +294,8 @@ class DatasetSample:
         :return: Array of most important colors and percentage of pixels they represent
         """
 
-        return self._kmeans_color_clusters()
+        # return self._kmeans_color_clusters()
+        return self._hsv_color_clusters_dbscan()
 
 
     def paste_on_background(self, background_image):
