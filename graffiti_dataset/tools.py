@@ -6,7 +6,7 @@ import plotly
 import skimage
 import numpy as np
 import matplotlib.pyplot as plt
-from graffiti_dataset.dataset import DatasetSample
+from skimage.segmentation import mark_boundaries
 import folium
 import plotly.graph_objs as go
 
@@ -81,7 +81,7 @@ def draw_main_colors(image_main_colors, output_path):
 
 def draw_hsv_pixels(sample, output_path):
 
-    sample_pixels = sample.graffiti_pixels(10)
+    sample_pixels = sample.graffiti_pixels()
     sample_pixels_hsv = sample.rgb_pixels_to_hsv(sample_pixels).astype(int)
 
     hsv_hue_values = [0] * 360
@@ -114,7 +114,7 @@ def draw_hsv_pixels(sample, output_path):
     plt.cla()
     plt.clf()
 
-def draw_map(dataset_samples_paths, output_path):
+def draw_map(gps_coordinates, output_path):
     """
     Generates map from GPS coordinates of the samples
 
@@ -122,23 +122,18 @@ def draw_map(dataset_samples_paths, output_path):
     :param output_path: Output path where to store map in HTML
     """
 
-    gps_coordinates = []
+    map = folium.Map(zoom_start=12,location=list(np.mean(gps_coordinates[:,0:2].astype(float), axis=0)))
 
-    for sample_path in dataset_samples_paths:
-        sample = DatasetSample(sample_path)
-        gps_coordinates.append([sample.gps_latitude, sample.gps_longitude])
-
-    map = folium.Map(zoom_start=12,location=list(np.mean(gps_coordinates, axis=0)))
-
-    for sample_path in dataset_samples_paths:
-        sample = DatasetSample(sample_path)
-        folium.Marker([sample.gps_latitude, sample.gps_longitude], popup=sample.sample_id).add_to(map)
-
+    for sample in gps_coordinates:
+        folium.Marker(sample[0:2].astype(float), popup=sample[2]).add_to(map)
 
     map.save(output_path)
 
 
-def draw_color_cube(dataset_pixels, output_path):
+def draw_color_cube(dataset_pixels, output_path, colors=None):
+
+    if colors is None:
+        colors = dataset_pixels
 
     color_dots = go.Scatter3d(
         x=dataset_pixels[:,0],
@@ -146,11 +141,11 @@ def draw_color_cube(dataset_pixels, output_path):
         z=dataset_pixels[:,2],
         mode='markers',
         marker=dict(
-            color=dataset_pixels,
+            color=colors,
             size=12,
             symbol='circle',
             line=dict(
-                color=dataset_pixels,
+                color=colors,
                 width=1
             ),
             opacity=0.9
@@ -177,3 +172,6 @@ def draw_color_cube(dataset_pixels, output_path):
     plotly.offline.plot(fig, filename=output_path, auto_open=False)
 
 
+def draw_super_pixels(super_pixels, image, output_path):
+
+    cv2.imwrite(output_path, mark_boundaries(image, super_pixels) * 255)
