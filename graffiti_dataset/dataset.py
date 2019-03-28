@@ -7,14 +7,19 @@ import random
 import skimage
 import numpy as np
 from scipy.ndimage import gaussian_filter, map_coordinates
+from skimage import color
+from skimage.segmentation import quickshift
 from sklearn.cluster import KMeans, DBSCAN
+
+# from sklearn.cluster import AgglomerativeClustering, AffinityPropagation, MeanShift, SpectralClustering, Birch
+# from sklearn.mixture import GaussianMixture
 
 
 
 class DatasetSample:
     """This represents single entry from dataset"""
 
-    def __init__(self, pickle_file_path):
+    def __init__(self, pickle_file_path, apply_opening_on_masks=True):
         """
         Process single row from Pandas
 
@@ -22,6 +27,20 @@ class DatasetSample:
         """
 
         self.sample = pickle.load(open(pickle_file_path, 'rb'))
+
+
+        if apply_opening_on_masks:
+
+            for layer in ['graffiti_mask',
+                          'background_mask',
+                          'incomplete_graffiti_mask',
+                          'background_graffiti_mask']:
+
+                self.sample[layer] = self._apply_opening(self.sample[layer])
+
+    def _apply_opening(self, img, kernel=np.ones((7, 7), np.uint8)):
+
+        return cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
 
     @property
     def image(self):
@@ -159,24 +178,49 @@ class DatasetSample:
         for _ in range(3):
 
             random_color = random.randint(-min_max_value, min_max_value)
-
-            # print(f'Random color {random_color}')
-
             random_color_mask = (cv2.add(self.graffiti_mask, self.background_graffiti_mask) / 255) * random_color
-
             random_channels.append(random_color_mask)
 
         random_color_mask = np.stack(random_channels, axis=2)
-
         random_color_image = cv2.add(self.image.astype(np.float64), random_color_mask).astype(np.uint8)
 
         self.sample['image'] = random_color_image
 
-    def graffiti_pixels(self, return_percentage=100):
+    def graffiti_super_pixels(self):
+        """
+        Computes graffiti super pixels with quickshift method
 
-        # TODO use numpy masking in this function ?
+        """
 
-        assert return_percentage <= 100
+        pixel_values = []
+
+        segments_quick = quickshift(self.image / 255, max_dist=35, kernel_size=5)
+        segmented_image = color.label2rgb(segments_quick, self.image, kind='avg')
+        uniq_super_pixel_ids = np.unique(segments_quick)
+
+        for sp_id in uniq_super_pixel_ids:
+
+            sp_px_coordinates = np.array(np.where(segments_quick == sp_id))
+            sp_px_coordinates = sp_px_coordinates.swapaxes(0, 1)
+
+            graffiti_mask_values = np.mean(self.graffiti_mask[sp_px_coordinates[:, 0], sp_px_coordinates[:, 1]]) / 255
+
+            cluster_pixels = np.array(np.where(segments_quick == sp_id))[:,0]
+
+            # Use only super pixels which are at least 90% labeled as graffiti
+            if graffiti_mask_values >= 0.9:
+            # if mask_value != 0:
+                pixel_values.append(np.flip(segmented_image[cluster_pixels[0], cluster_pixels[1]]))
+
+        return segments_quick, np.array(pixel_values), segmented_image
+
+    def graffiti_pixels(self, add_xy=False):
+        """
+        Returns all graffiti pixels as RGB values
+
+        :param add_xy: add X and Y coordinates to resulting array
+
+        """
 
         rows,cols,_ = self.image.shape
 
@@ -188,7 +232,24 @@ class DatasetSample:
 
                 if mask_value != 0:
                     pixel_value = np.flip(self.image[i, j])
-                    raw_pixel_values.append(pixel_value)
+
+                    if add_xy:
+                        raw_pixel_values.append(np.concatenate((pixel_value, np.array([i, j]))))
+                    else:
+                        raw_pixel_values.append(pixel_value)
+
+        return np.array(raw_pixel_values)
+
+    def filter_pixel_percentage(self, raw_pixel_values, return_percentage):
+        """
+        Returns only specific percentage of pixels.
+        This is mainly helpful to CPU intensive tasks
+
+        :param raw_pixel_values: array of RGB pixels
+        :param return_percentage: percentage of pixels to return
+        """
+
+        assert return_percentage <= 100 and return_percentage >= 0
 
         random.shuffle(raw_pixel_values)
 
@@ -198,94 +259,16 @@ class DatasetSample:
 
         return np.array(raw_pixel_values)
 
-    def _kmeans_color_clusters(self, use_pixels_percentage=100):
-        """
-        Cluster pixels according their color in HSV.
-        This method uses DBSCAN as clustering method.
-
-        :param use_pixels_percentage: How many pixels of the image use for clustering
-        :return: sorted array of color clusters
-        """
-
-        raw_pixel_values = self.graffiti_pixels(use_pixels_percentage)
-
-        embedding = KMeans().fit(raw_pixel_values)
-
-        pixel_counter = defaultdict(int)
-
-        for label in embedding.labels_:
-            pixel_counter[label] += 1
-
-        image_colors = []
-
-        image_main_colors = embedding.cluster_centers_.astype(int)
-
-        for key, item in pixel_counter.items():
-
-            color_percentage = int(item / (len(raw_pixel_values) / 100))
-
-            image_colors.append([color_percentage, list(image_main_colors[key])])
-
-        return sorted(image_colors, key=itemgetter(0), reverse=True)
-
     @staticmethod
     def rgb_pixels_to_hsv(rgb_pixels):
+        """
+        Convert RGB pixels to HSV color space
+
+        :param rgb_pixels: array of RGB pixels
+        """
 
         return np.array(
             [np.array(colorsys.rgb_to_hsv(*pixel / 255)) * np.array([360, 100, 100]) for pixel in rgb_pixels])
-
-    def _hsv_color_clusters_dbscan(self, min_cluster_percentage=2, use_pixels_percentage=10, dbscan_eps=10):
-        """
-        Cluster pixels according their color in HSV.
-        This method uses DBSCAN as clustering method.
-
-        :param dbscan_eps: eps parameter to DBSCAN
-        :param use_pixels_percentage: How many pixels of the image use for clustering
-        :param min_cluster_percentage: How big color cluster needs to be to be considered
-        :return: sorted array of color clusters
-        """
-
-        raw_pixel_values = self.graffiti_pixels(use_pixels_percentage)
-
-        min_samples_cluster = int((len(raw_pixel_values) / 100) * min_cluster_percentage)
-
-        hsv_pixels = self.rgb_pixels_to_hsv(raw_pixel_values).astype(np.int16)
-
-        pixels_color_angles = hsv_pixels[:, 0]
-
-        embedding = DBSCAN(
-            eps=dbscan_eps,
-            min_samples=min_samples_cluster
-        ).fit_predict(pixels_color_angles.reshape(-1, 1))
-
-        pixel_counter = defaultdict(int)
-
-        avg_colors = defaultdict(list)
-
-        for i, label in enumerate(embedding):
-
-            pixel_counter[label] += 1
-            avg_colors[label].append(raw_pixel_values[i])
-
-        for key, values in avg_colors.items():
-            avg_colors[key] = np.median(values, axis=0).astype(int)
-
-        image_colors = []
-
-        for key, item in pixel_counter.items():
-
-            if key == -1:
-                continue
-
-            color_percentage = int(item / (len(raw_pixel_values) / 100))
-
-            image_colors.append(
-                [
-                    color_percentage, avg_colors[key]
-                ]
-            )
-
-        return sorted(image_colors, key=itemgetter(0), reverse=True)
 
     def main_colors(self):
         """
@@ -294,8 +277,86 @@ class DatasetSample:
         :return: Array of most important colors and percentage of pixels they represent
         """
 
-        # return self._kmeans_color_clusters()
-        return self._hsv_color_clusters_dbscan()
+        return self.cluster_colors(1, 'rgb', 10, True)
+
+    def cluster_colors(self, clustering_method, color_type, dataset_percent, use_super_pixels):
+        """
+        Cluster graffiti
+
+        :param clustering_method: 0 - Kmeans, 1 - DBSCAN
+        :param color_type: {'rgb', 'hsv', 'hsv_hue'}
+        :param dataset_percent: Limit clustering to only some percentage of pixels.
+        This is used only with use_super_pixels = False
+        :param use_super_pixels: True to use super pixels rather than raw pixels
+        """
+
+        assert clustering_method in range(4)
+        assert color_type in ['rgb', 'hsv', 'hsv_hue']
+
+        if use_super_pixels:
+            super_pixels, rgb_pixels, _ = self.graffiti_super_pixels()
+        else:
+            rgb_pixels = self.graffiti_pixels()
+
+        if color_type == 'rgb':
+            input_data = rgb_pixels
+        elif color_type == 'hsv':
+            input_data = self.rgb_pixels_to_hsv(rgb_pixels)
+        elif color_type == 'hsv_hue':
+            input_data = self.rgb_pixels_to_hsv(rgb_pixels)[:, 0].reshape(-1, 1)
+        else:
+            raise ValueError('Unsupported color type')
+
+        if not use_super_pixels:
+            input_data = self.filter_pixel_percentage(input_data, dataset_percent)
+
+        # min_samples_pct = 2
+        # min_samples = int((len(input_data) / 100) * min_samples_pct)
+
+        if clustering_method == 0:
+            cluster = KMeans()
+        elif clustering_method == 1:
+            cluster = DBSCAN(eps=35)
+        else:
+            raise ValueError('Unsupported clustering method')
+
+        return self.cluster_sample(cluster, input_data, rgb_pixels)
+
+    def cluster_sample(self, clustering_method, clustering_samples, samples_rgb):
+        """
+        Method to cluster pixels with clustering method
+
+        :param clustering_method: Usually Scikit class
+        :param clustering_samples: Samples to use for clustering
+        :param samples_rgb: clustering_samples doesn't have to be in RGB, this array is used to represent results in RGB
+        """
+
+        embedding = clustering_method.fit(clustering_samples)
+
+        pixel_counter = defaultdict(int)
+        avg_colors = defaultdict(list)
+
+        for i, label in enumerate(embedding.labels_):
+            pixel_counter[label] += 1
+            avg_colors[label].append(samples_rgb[i])
+
+        for key, values in avg_colors.items():
+            # avg_colors[key] = np.median(values, axis=0).astype(int)
+            # avg_colors[key] = np.min(values, axis=0).astype(int)
+            avg_colors[key] = np.median(values, axis=0).astype(int)
+
+        image_colors = []
+
+        for key, item in pixel_counter.items():
+            color_percentage = int(item / (len(clustering_samples) / 100))
+
+            image_colors.append(
+                [
+                    color_percentage, avg_colors[key]
+                ]
+            )
+
+        return sorted(image_colors, key=itemgetter(0), reverse=True)
 
 
     def paste_on_background(self, background_image):
@@ -322,6 +383,6 @@ class DatasetSample:
 
         self.sample['image'] = cv2.add(foreground, background).astype(np.uint8)
 
-    def __str__(self):
+    def __repr__(self):
 
         return f'ID {self.sample_id} Image {self.image.shape} GPS {self.gps_longitude}, {self.gps_latitude}'
