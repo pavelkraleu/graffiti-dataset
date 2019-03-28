@@ -331,10 +331,7 @@ The most common colors in the graffiti
 Source Image
 </td>
 <td>
-RGB Kmeans clusters
-</td>
-<td>
-HSV DBSCAN clusters
+RGB DBSCAN clusters
 </td>
 </tr>
 
@@ -345,9 +342,6 @@ HSV DBSCAN clusters
 <td>
     <img src="./readme_images/01df7f7f7e7e6000_colors_rgb.png" width="200">
 </td>
-<td>
-    <img src="./readme_images/01df7f7f7e7e6000_colors_hsv.png" width="200">
-</td>
 </tr>
 
 <tr>
@@ -356,9 +350,6 @@ HSV DBSCAN clusters
 </td>
 <td>
     <img src="./readme_images/000001ff0013ffff_colors_rgb.png" width="200">
-</td>
-<td>
-    <img src="./readme_images/000001ff0013ffff_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -369,9 +360,6 @@ HSV DBSCAN clusters
 <td>
     <img src="./readme_images/7f7fff8f89837f00_colors_rgb.png" width="200">
 </td>
-<td>
-    <img src="./readme_images/7f7fff8f89837f00_colors_hsv.png" width="200">
-</td>
 </tr>
 
 <tr>
@@ -381,9 +369,6 @@ HSV DBSCAN clusters
 <td>
     <img src="./readme_images/070b070707cfa7ff_colors_rgb.png" width="200">
 </td>
-<td>
-    <img src="./readme_images/070b070707cfa7ff_colors_hsv.png" width="200">
-</td>
 </tr>
 
 <tr>
@@ -392,9 +377,6 @@ HSV DBSCAN clusters
 </td>
 <td>
     <img src="./readme_images/8703f3c389a1f73f_colors_rgb.png" width="200">
-</td>
-<td>
-    <img src="./readme_images/8703f3c389a1f73f_colors_hsv.png" width="200">
 </td>
 </tr>
 
@@ -423,12 +405,16 @@ Locations of samples in this repository :
 How to generate such map
 
 ```python
-import glob
-from graffiti_dataset.tools import draw_map
-
 dataset_samples = glob.glob('./dataset/graffiti_sample/*.p')
 
-draw_map(dataset_samples, f'./readme_images/map.html')
+gps_coordinates = []
+
+for sample_path in dataset_samples:
+    sample = DatasetSample(sample_path)
+    gps_coordinates.append([sample.gps_latitude, sample.gps_longitude, sample.sample_id])
+
+draw_map(np.array(gps_coordinates), f'./readme_images/map.html')
+
 ```
 
 ### Color analysis
