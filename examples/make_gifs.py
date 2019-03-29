@@ -14,6 +14,10 @@ gif_duration = 0.5
 rescale_ratio = 0.25
 images = []
 
+"""
+Generates GIFs used in README.md
+"""
+
 def resize_image(image):
     return rescale(
         image,
@@ -76,6 +80,7 @@ for _ in range(num_images):
 imageio.mimsave('./readme_images/elastic.gif', images, duration=gif_duration)
 
 images = []
+images_bg = []
 
 for _ in range(num_images):
 
@@ -86,6 +91,7 @@ for _ in range(num_images):
     sample.resize(1024, 1024)
 
     background_image = random_background(1024, 1024, './dataset/background_images_sample/')
+    images_bg.append(resize_image(background_image))
 
     sample.paste_on_background(background_image)
 
@@ -93,6 +99,8 @@ for _ in range(num_images):
     images.append(resize_image(cv2.cvtColor(sample.image, cv2.COLOR_BGR2RGB)))
 
 imageio.mimsave('./readme_images/random_background.gif', images, duration=gif_duration)
+imageio.mimsave('./readme_images/random_background_only.gif', images_bg, duration=gif_duration)
+
 
 
 images = []
