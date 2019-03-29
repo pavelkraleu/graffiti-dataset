@@ -11,9 +11,9 @@ from skimage import color
 from skimage.segmentation import quickshift
 from sklearn.cluster import KMeans, DBSCAN
 
+
 # from sklearn.cluster import AgglomerativeClustering, AffinityPropagation, MeanShift, SpectralClustering, Birch
 # from sklearn.mixture import GaussianMixture
-
 
 
 class DatasetSample:
@@ -28,17 +28,18 @@ class DatasetSample:
 
         self.sample = pickle.load(open(pickle_file_path, 'rb'))
 
-
         if apply_opening_on_masks:
-
             for layer in ['graffiti_mask',
                           'background_mask',
                           'incomplete_graffiti_mask',
                           'background_graffiti_mask']:
-
                 self.sample[layer] = self._apply_opening(self.sample[layer])
 
-    def _apply_opening(self, img, kernel=np.ones((7, 7), np.uint8)):
+    @staticmethod
+    def _apply_opening(img, kernel=np.ones((7, 7), np.uint8)):
+        """
+        Remove artefacts from masks
+        """
 
         return cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
 
@@ -85,11 +86,21 @@ class DatasetSample:
 
         rotate_angle = 360 - random.randint(min_angle, max_angle)
 
-        self.sample['image'] = skimage.transform.rotate(self.image, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        self.sample['background_mask'] = skimage.transform.rotate(self.background_mask, rotate_angle, resize=False, preserve_range=True, mode='constant', cval=255).astype(np.uint8)
-        self.sample['graffiti_mask'] = skimage.transform.rotate(self.graffiti_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        self.sample['incomplete_graffiti_mask'] = skimage.transform.rotate(self.incomplete_graffiti_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        self.sample['background_graffiti_mask'] = skimage.transform.rotate(self.background_graffiti_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
+        for layer in [
+            'image',
+            'background_mask',
+            'graffiti_mask',
+            'incomplete_graffiti_mask',
+            'background_graffiti_mask']:
+
+            self.sample[layer] = skimage.transform.rotate(self.sample[layer], rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
+
+        #  mode='constant', cval=255
+        # self.sample['image'] = skimage.transform.rotate(self.image, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
+        # self.sample['background_mask'] = skimage.transform.rotate(self.background_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
+        # self.sample['graffiti_mask'] = skimage.transform.rotate(self.graffiti_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
+        # self.sample['incomplete_graffiti_mask'] = skimage.transform.rotate(self.incomplete_graffiti_mask, rotate_angle,resize=False, preserve_range=True).astype(np.uint8)
+        # self.sample['background_graffiti_mask'] = skimage.transform.rotate(self.background_graffiti_mask, rotate_angle,resize=False, preserve_range=True).astype(np.uint8)
 
     def elastic_transform(self, alpha=991, sigma=8):
         """
@@ -114,17 +125,29 @@ class DatasetSample:
 
         self.sample['image'] = map_coordinates(self.image, indices, order=1, mode='reflect').reshape(shape)
 
+        # This is mildly horrible way how to do it
+        # I convert 1-channel masks to 3-channel in order to have them same shape is RGB image
+        # Than back to 1-channel
+
         background_mask_rgb = cv2.cvtColor(self.background_mask, cv2.COLOR_GRAY2RGB)
-        self.sample['background_mask'] = cv2.cvtColor(map_coordinates(background_mask_rgb, indices, order=1, mode='reflect').reshape(background_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
+        self.sample['background_mask'] = cv2.cvtColor(
+            map_coordinates(background_mask_rgb, indices, order=1, mode='reflect').reshape(background_mask_rgb.shape),
+            cv2.COLOR_RGB2GRAY)
 
         graffiti_mask_rgb = cv2.cvtColor(self.graffiti_mask, cv2.COLOR_GRAY2RGB)
-        self.sample['graffiti_mask'] = cv2.cvtColor(map_coordinates(graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
+        self.sample['graffiti_mask'] = cv2.cvtColor(
+            map_coordinates(graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(graffiti_mask_rgb.shape),
+            cv2.COLOR_RGB2GRAY)
 
         incomplete_graffiti_mask_rgb = cv2.cvtColor(self.incomplete_graffiti_mask, cv2.COLOR_GRAY2RGB)
-        self.sample['incomplete_graffiti_mask'] = cv2.cvtColor(map_coordinates(incomplete_graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(incomplete_graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
+        self.sample['incomplete_graffiti_mask'] = cv2.cvtColor(
+            map_coordinates(incomplete_graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(
+                incomplete_graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
 
         background_graffiti_mask_rgb = cv2.cvtColor(self.background_graffiti_mask, cv2.COLOR_GRAY2RGB)
-        self.sample['background_graffiti_mask'] = cv2.cvtColor(map_coordinates(background_graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(background_graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
+        self.sample['background_graffiti_mask'] = cv2.cvtColor(
+            map_coordinates(background_graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(
+                background_graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
 
     def resize(self, height, width):
         """
@@ -147,23 +170,27 @@ class DatasetSample:
         x_skip = random.randint(0, x_range)
 
         img = new_image((height, width, 3))
-        img[y_skip:y_skip + self.image.shape[0],x_skip:x_skip + self.image.shape[1]] = self.image
+        img[y_skip:y_skip + self.image.shape[0], x_skip:x_skip + self.image.shape[1]] = self.image
         self.sample['image'] = img
 
         img = new_image((height, width)) + 255
-        img[y_skip:y_skip + self.background_mask.shape[0],x_skip:x_skip + self.background_mask.shape[1]] = self.background_mask
+        img[y_skip:y_skip + self.background_mask.shape[0],
+        x_skip:x_skip + self.background_mask.shape[1]] = self.background_mask
         self.sample['background_mask'] = img
 
         img = new_image((height, width))
-        img[y_skip:y_skip + self.graffiti_mask.shape[0],x_skip:x_skip + self.graffiti_mask.shape[1]] = self.graffiti_mask
+        img[y_skip:y_skip + self.graffiti_mask.shape[0],
+        x_skip:x_skip + self.graffiti_mask.shape[1]] = self.graffiti_mask
         self.sample['graffiti_mask'] = img
 
         img = new_image((height, width))
-        img[y_skip:y_skip + self.incomplete_graffiti_mask.shape[0],x_skip:x_skip + self.incomplete_graffiti_mask.shape[1]] = self.incomplete_graffiti_mask
+        img[y_skip:y_skip + self.incomplete_graffiti_mask.shape[0],
+        x_skip:x_skip + self.incomplete_graffiti_mask.shape[1]] = self.incomplete_graffiti_mask
         self.sample['incomplete_graffiti_mask'] = img
 
         img = new_image((height, width))
-        img[y_skip:y_skip + self.background_graffiti_mask.shape[0],x_skip:x_skip + self.background_graffiti_mask.shape[1]] = self.background_graffiti_mask
+        img[y_skip:y_skip + self.background_graffiti_mask.shape[0],
+        x_skip:x_skip + self.background_graffiti_mask.shape[1]] = self.background_graffiti_mask
         self.sample['background_graffiti_mask'] = img
 
     def randomize_color(self, min_max_value=30):
@@ -176,7 +203,6 @@ class DatasetSample:
         random_channels = []
 
         for _ in range(3):
-
             random_color = random.randint(-min_max_value, min_max_value)
             random_color_mask = (cv2.add(self.graffiti_mask, self.background_graffiti_mask) / 255) * random_color
             random_channels.append(random_color_mask)
@@ -205,11 +231,11 @@ class DatasetSample:
 
             graffiti_mask_values = np.mean(self.graffiti_mask[sp_px_coordinates[:, 0], sp_px_coordinates[:, 1]]) / 255
 
-            cluster_pixels = np.array(np.where(segments_quick == sp_id))[:,0]
+            cluster_pixels = np.array(np.where(segments_quick == sp_id))[:, 0]
 
             # Use only super pixels which are at least 90% labeled as graffiti
             if graffiti_mask_values >= 0.9:
-            # if mask_value != 0:
+                # if mask_value != 0:
                 pixel_values.append(np.flip(segmented_image[cluster_pixels[0], cluster_pixels[1]]))
 
         return segments_quick, np.array(pixel_values), segmented_image
@@ -222,7 +248,7 @@ class DatasetSample:
 
         """
 
-        rows,cols,_ = self.image.shape
+        rows, cols, _ = self.image.shape
 
         raw_pixel_values = []
 
@@ -240,7 +266,8 @@ class DatasetSample:
 
         return np.array(raw_pixel_values)
 
-    def filter_pixel_percentage(self, raw_pixel_values, return_percentage):
+    @staticmethod
+    def filter_pixel_percentage(raw_pixel_values, return_percentage):
         """
         Returns only specific percentage of pixels.
         This is mainly helpful to CPU intensive tasks
@@ -249,7 +276,7 @@ class DatasetSample:
         :param return_percentage: percentage of pixels to return
         """
 
-        assert return_percentage <= 100 and return_percentage >= 0
+        assert 100 >= return_percentage >= 0
 
         random.shuffle(raw_pixel_values)
 
@@ -322,7 +349,8 @@ class DatasetSample:
 
         return self.cluster_sample(cluster, input_data, rgb_pixels)
 
-    def cluster_sample(self, clustering_method, clustering_samples, samples_rgb):
+    @staticmethod
+    def cluster_sample(clustering_method, clustering_samples, samples_rgb):
         """
         Method to cluster pixels with clustering method
 
@@ -357,7 +385,6 @@ class DatasetSample:
             )
 
         return sorted(image_colors, key=itemgetter(0), reverse=True)
-
 
     def paste_on_background(self, background_image):
         """
