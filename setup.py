@@ -18,6 +18,10 @@ setup(
         'scikit-image',
         'scikit-learn',
         'plotly',
-        'numpy'
+        'numpy',
+        'GPSPhoto',
+        'imagehash',
+        'exifread',
+        'piexif'
     ],
 )

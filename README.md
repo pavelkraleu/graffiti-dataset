@@ -438,7 +438,12 @@ python3 labelbox_to_pickle.py export.csv dataset/graffiti dataset.csv
 * `dataset.csv` - CSV file made when files were preprocessed before uploading to LabelBox. We need to do this in order to save GPS coordinates
 
 
+## Prepare data to upload to LabelBox
 
+```
+python3 data_to_labelbox.py './inout_data/*.JPG' ./output_direcotry/ ./new_data.csv
+```
 
-
-
+* `./inout_data/*.JPG` - Where to look for new data
+* `./output_direcotry/` - Where to put processed images
+* `./new_data.csv` - Where to store CSV describing new data
