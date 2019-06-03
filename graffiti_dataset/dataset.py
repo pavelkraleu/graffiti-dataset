@@ -75,6 +75,27 @@ class DatasetSample:
     def gps_latitude(self):
         return self.sample['gps_latitude']
 
+    def random_downsize(self, min_ratio=0.5, max_ratio=1.0):
+        """
+        Randomly downsize sample
+
+        :param min_ratio: Minimum resize ratio
+        :param max_ratio: Maximum resize ratio
+
+        """
+
+        random_ratio = random.uniform(max_ratio, min_ratio)
+
+        for layer in [
+            'image',
+            'background_mask',
+            'graffiti_mask',
+            'incomplete_graffiti_mask',
+            'background_graffiti_mask']:
+
+            self.sample[layer] = skimage.transform.rescale(self.sample[layer], random_ratio, multichannel=self.sample[layer].ndim == 3, preserve_range=True).astype(np.uint8)
+
+
     def random_rotate(self, min_angle=-30, max_angle=30):
         """
         Randomly rotate sample
@@ -94,13 +115,6 @@ class DatasetSample:
             'background_graffiti_mask']:
 
             self.sample[layer] = skimage.transform.rotate(self.sample[layer], rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-
-        #  mode='constant', cval=255
-        # self.sample['image'] = skimage.transform.rotate(self.image, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        # self.sample['background_mask'] = skimage.transform.rotate(self.background_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        # self.sample['graffiti_mask'] = skimage.transform.rotate(self.graffiti_mask, rotate_angle, resize=False, preserve_range=True).astype(np.uint8)
-        # self.sample['incomplete_graffiti_mask'] = skimage.transform.rotate(self.incomplete_graffiti_mask, rotate_angle,resize=False, preserve_range=True).astype(np.uint8)
-        # self.sample['background_graffiti_mask'] = skimage.transform.rotate(self.background_graffiti_mask, rotate_angle,resize=False, preserve_range=True).astype(np.uint8)
 
     def elastic_transform(self, alpha=991, sigma=8):
         """

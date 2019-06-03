@@ -21,7 +21,7 @@ def random_background(width, height, background_images_dir):
 
     """
 
-    negative_images = glob.glob(f'./{background_images_dir}/*')
+    negative_images = glob.glob(f'{background_images_dir}/*')
 
     random.shuffle(negative_images)
 
