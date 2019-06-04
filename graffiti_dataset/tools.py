@@ -22,19 +22,22 @@ def random_background(width, height, background_images_dir):
     """
 
     negative_images = glob.glob(f'{background_images_dir}/*')
-
     random.shuffle(negative_images)
-
     img = cv2.cvtColor(cv2.imread(negative_images[0]),cv2.COLOR_RGB2BGR)
+
+    min_value_img = min(img.shape[0:2])
+    min_value_size = min((width, height))
+    min_ratio = min_value_size / min_value_img
+    img_resize_ratio = random.uniform(min_ratio, 1.0)
+
+    img = skimage.transform.rescale(img, img_resize_ratio, multichannel=True,preserve_range=True).astype(np.uint8)
 
     if min(img.shape[:2]) < min(width, height):
         # Image is smaller than self.target_size. Scale it up
-
         resize_ratio = min(width, height) / min(img.shape[:2])
 
     else:
         # Image is larger than self.target_size. Scale it down a little
-
         resize_ratio = min(width, height) / min(img.shape[:2])
         resize_ratio = random.uniform(resize_ratio, 1.0)
 

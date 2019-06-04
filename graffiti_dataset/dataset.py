@@ -27,6 +27,7 @@ class DatasetSample:
         """
 
         self.sample = pickle.load(open(pickle_file_path, 'rb'))
+        self.sample['image'] = cv2.cvtColor(self.sample['image'], cv2.COLOR_RGB2BGR)
 
         if apply_opening_on_masks:
             for layer in ['graffiti_mask',
@@ -163,7 +164,7 @@ class DatasetSample:
             map_coordinates(background_graffiti_mask_rgb, indices, order=1, mode='reflect').reshape(
                 background_graffiti_mask_rgb.shape), cv2.COLOR_RGB2GRAY)
 
-    def resize(self, height, width):
+    def resize(self, height, width, bg_image=None):
         """
         Resize sample to given size. This resize also masks.
 
@@ -174,6 +175,9 @@ class DatasetSample:
         if height < self.image.shape[0] or width < self.image.shape[1]:
             raise ValueError('New image must be larger or same than original image')
 
+        if bg_image is not None:
+            assert bg_image.shape == (height, width, 3)
+
         def new_image(shape):
             return np.zeros(shape, np.uint8)
 
@@ -183,7 +187,10 @@ class DatasetSample:
         y_skip = random.randint(0, y_range)
         x_skip = random.randint(0, x_range)
 
-        img = new_image((height, width, 3))
+        if bg_image is not None:
+            img = bg_image.astype('float32')
+        else:
+            img = new_image((height, width, 3))
         img[y_skip:y_skip + self.image.shape[0], x_skip:x_skip + self.image.shape[1]] = self.image
         self.sample['image'] = img
 
