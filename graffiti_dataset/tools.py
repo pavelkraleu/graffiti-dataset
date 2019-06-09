@@ -11,17 +11,16 @@ import folium
 import plotly.graph_objs as go
 
 
-def random_background(width, height, background_images_dir):
+def random_background(width, height, negative_images):
     """
     Makes image with given size which doesn't contain graffiti
 
     :param width: Resulting width in pixels
     :param height: Resulting height in pixels
-    :param background_images_dir: Directory where to look for images
+    :param negative_images: List of paths to negative images
 
     """
 
-    negative_images = glob.glob(f'{background_images_dir}/*')
     random.shuffle(negative_images)
     img = cv2.cvtColor(cv2.imread(negative_images[0]),cv2.COLOR_RGB2BGR)
 

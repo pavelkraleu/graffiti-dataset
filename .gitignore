@@ -1,11 +1,13 @@
 dataset/graffiti
 dataset/background_images
+dataset/graffiti_complete
 
 test_images
 .idea
 
 dataset.csv
 export.csv
+new.csv
 
 venv
 

@@ -57,7 +57,11 @@ for col in list(df):
     print(df.head()[col])
     print()
 
-original_datset_df = pd.read_csv(dataset_csv, index_col='hash_average')
+original_datset_df = pd.read_csv(
+    dataset_csv,
+    index_col='hash_average',
+    usecols=['gps_latitude','gps_longitude','hash_average','original_file_name']
+)
 
 print(original_datset_df)
 
