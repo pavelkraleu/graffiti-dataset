@@ -22,7 +22,7 @@ def random_background(width, height, negative_images):
     """
 
     random.shuffle(negative_images)
-    img = cv2.cvtColor(cv2.imread(negative_images[0]),cv2.COLOR_RGB2BGR)
+    img = cv2.cvtColor(cv2.imread(negative_images[0]),cv2.COLOR_BGR2RGB)
 
     min_value_img = min(img.shape[0:2])
     min_value_size = min((width, height))

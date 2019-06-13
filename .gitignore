@@ -1,6 +1,7 @@
 dataset/graffiti
 dataset/background_images
 dataset/graffiti_complete
+dataset/test_set
 
 test_images
 .idea

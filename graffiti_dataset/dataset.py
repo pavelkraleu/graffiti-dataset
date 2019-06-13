@@ -27,7 +27,7 @@ class DatasetSample:
         """
 
         self.sample = pickle.load(open(pickle_file_path, 'rb'))
-        self.sample['image'] = cv2.cvtColor(self.sample['image'], cv2.COLOR_RGB2BGR)
+        # self.sample['image'] = cv2.cvtColor(self.sample['image'], cv2.COLOR_RGB2BGR)
 
         if apply_opening_on_masks:
             for layer in ['graffiti_mask',
